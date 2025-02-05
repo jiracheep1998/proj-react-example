@@ -1,0 +1,15 @@
+.navbar {
+    height: 60px;
+    padding: 10px 10px;
+    background: #474747 !important;
+    border: none;
+    border-radius: 0;
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+    color: #fff;
+}
+.nav-link{
+    color: #fff !important;
+}
+.navbar i{
+    color: #fff;
+}

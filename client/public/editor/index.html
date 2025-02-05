@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        .dropbtn {
+            background-color: #3498DB;
+            color: white;
+            padding: 5px;
+            font-size: 16px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .dropbtn:hover,
+        .dropbtn:focus {
+            background-color: #2980B9;
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #f1f1f1;
+            min-width: 160px;
+            overflow: auto;
+            box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+            z-index: 1;
+        }
+
+        .dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+
+        .dropdown a:hover {
+            background-color: #ddd;
+        }
+
+        .show {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="viewer"></div>
+
+    <div style="width: 45px; height: 100%; background-color: rgb(79 79 79); position: absolute; top: 0; left: 0;">
+
+        <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="width: 35px; height: 47px;"></div>
+            <div style="width: 35px; padding: 5px;">
+                <img src='/icon/select.svg'></img>
+            </div>
+            <div style="width: 35px; padding: 5px;">
+                <img src='/icon/panning.svg'></img>
+            </div>
+            <div style="width: 35px; padding: 5px;">
+                <img src='/icon/pen.svg'></img>
+            </div>
+            <div style="width: 35px; padding: 5px;">
+                <img src='/icon/square.svg'></img>
+            </div>
+            <div style="width: 35px; padding: 5px;">
+                <img src='/icon/circle.svg'></img>
+            </div>
+            <div style="width: 35px; padding: 5px;">
+                <img src='/icon/image.svg'></img>
+            </div>
+        </div>
+    </div>
+
+    <div
+        style="display: flex; align-items: center; width: 100%; height: 47px; background-color: rgb(89 89 89); position: absolute; top: 0; left: 0;">
+        <div style="display: flex; align-items: center; padding-left: 10px; padding-right: 10px;">
+
+            <div class="dropdown">
+                <button onclick="myFunction()" class="dropbtn">SVG-Edit</button>
+                <div id="myDropdown" class="dropdown-content">
+                    <a href="#home">Home</a>
+                    <a href="#about">About</a>
+                    <a href="#contact">Contact</a>
+                </div>
+            </div>
+
+            <div style="width: 35px; padding: 5px;">
+                <img src='/icon/select.svg'></img>
+            </div>
+            <div style="width: 35px; padding: 5px;">
+                <img src='/icon/select.svg'></img>
+            </div>
+            <div style="width: 35px; padding: 5px;">
+                <img src='/icon/select.svg'></img>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script src="script.js"></script>
+    <script>
+        var editor = new Editor('viewer');
+    </script>
+
+    <script>
+        /* When the user clicks on the button, 
+        toggle between hiding and showing the dropdown content */
+        function myFunction() {
+            document.getElementById("myDropdown").classList.toggle("show");
+        }
+
+        // Close the dropdown if the user clicks outside of it
+        window.onclick = function (event) {
+            if (!event.target.matches('.dropbtn')) {
+                var dropdowns = document.getElementsByClassName("dropdown-content");
+                var i;
+                for (i = 0; i < dropdowns.length; i++) {
+                    var openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains('show')) {
+                        openDropdown.classList.remove('show');
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- <script>
+        const svg = document.getElementById('svg');
+        const viewport = document.getElementById('viewport');
+        let scale = 1;
+        let translate = { x: 0, y: 0 };
+        let lastX, lastY;
+        let zooming = false;
+        let panning = false;
+        const zoomFactor = 1.1;
+
+        svg.addEventListener('wheel', eventZoom);
+
+        svg.addEventListener('mousedown', function (event) {
+            if (!panning) return;
+            event.preventDefault();
+            lastX = event.clientX;
+            lastY = event.clientY;
+
+            svg.addEventListener('mousemove', eventPan);
+            svg.addEventListener('mouseup', function () {
+                svg.removeEventListener('mousemove', eventPan);
+            });
+        });
+
+        function zoom(zoomAmount, centerX = null, centerY = null) {
+            const rect = svg.getBoundingClientRect();
+            if (centerX === null || centerY === null) {
+                centerX = rect.width / 2;
+                centerY = rect.height / 2;
+            }
+
+            const zoom = zoomAmount < 1 ? 1 / zoomAmount : zoomAmount;
+
+            // Calculate the mouse position relative to centerX and centerY
+            const mouseX = (centerX - translate.x - rect.left) / scale;
+            const mouseY = (centerY - translate.y - rect.top) / scale;
+
+            // Adjust translate to keep the mouse position stable
+            translate.x -= mouseX * (zoom - scale);
+            translate.y -= mouseY * (zoom - scale);
+
+            // Apply new scale and translate
+            scale = zoom;
+            viewport.setAttribute('transform', `translate(${translate.x} ${translate.y}) scale(${scale})`);
+        }
+
+        function eventZoom() {
+            if (!zooming) return;
+            event.preventDefault();
+            const { offsetX, offsetY, deltaY } = event;
+            const zoom = deltaY < 0 ? zoomFactor : 1 / zoomFactor;
+
+            // Calculate the new scale
+            const newScale = scale * zoom;
+
+            // Calculate mouse position in SVG coordinates
+            const rect = svg.getBoundingClientRect();
+            const mouseX = (offsetX - translate.x - rect.left) / scale;
+            const mouseY = (offsetY - translate.y - rect.top) / scale;
+
+            // Adjust translate to keep the mouse position stable
+            translate.x -= mouseX * (newScale - scale);
+            translate.y -= mouseY * (newScale - scale);
+
+            // Apply new scale and translate
+            scale = newScale;
+            viewport.setAttribute('transform', `translate(${translate.x} ${translate.y}) scale(${scale})`);
+        }
+
+        function eventPan(event) {
+            event.preventDefault();
+            const deltaX = event.clientX - lastX;
+            const deltaY = event.clientY - lastY;
+            lastX = event.clientX;
+            lastY = event.clientY;
+
+            translate.x += deltaX;
+            translate.y += deltaY;
+
+            viewport.setAttribute('transform', `translate(${translate.x} ${translate.y}) scale(${scale})`);
+        }
+
+        function pan(deltaX, deltaY, panX = null, panY = null) {
+            const rect = svg.getBoundingClientRect();
+
+            if (panX !== null && panY !== null) {
+                translate.x = panX;
+                translate.y = panY;
+            } else {
+                translate.x += deltaX;
+                translate.y += deltaY;
+            }
+
+            viewport.setAttribute('transform', `translate(${translate.x} ${translate.y}) scale(${scale})`);
+        }
+
+        function center() {
+            const rect = svg.getBoundingClientRect();
+            const viewBoxWidth = rect.width / scale;
+            const viewBoxHeight = rect.height / scale;
+            const centerX = viewBoxWidth / 2;
+            const centerY = viewBoxHeight / 2;
+
+            translate.x = rect.width / 2 - centerX * scale;
+            translate.y = rect.height / 2 - centerY * scale;
+
+            viewport.setAttribute('transform', `translate(${translate.x} ${translate.y}) scale(${scale})`);
+        }
+
+        // Functions to start and stop zooming and panning
+        function startZoom() {
+            zooming = true;
+        }
+
+        function stopZoom() {
+            zooming = false;
+        }
+
+        function startPan() {
+            panning = true;
+        }
+
+        function stopPan() {
+            panning = false;
+        }
+    </script> -->
+
+
+    <!-- <script src="script.js"></script>
+    <script>
+
+
+        var editor = new Editor();
+
+        editor.shape.path.active();
+
+
+    </script> -->
+</body>
+
+</html>

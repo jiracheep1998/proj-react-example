@@ -1,0 +1,21 @@
+#sidebar {
+    background: #363636;
+    color: #fff;
+    transition: all 0.3s;
+}
+
+#sidebar .sidebar-header {
+    padding: 10px;
+    background: #424242;
+}
+
+#sidebar .sidebar-header label{
+    font-size: 20px;
+    margin: 0;
+    padding: 5px 0 5px 0;
+}
+
+#sidebar ul{
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+}

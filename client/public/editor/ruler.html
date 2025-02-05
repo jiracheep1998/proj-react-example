@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="ruler/ruler.css">
+</head>
+
+<body>
+    <div id="editor">
+        <div id="rulers" style="position: relative; width: 1600px; height: 1200px;"></div>
+    </div>
+
+    <script src="ruler/ruler.js"></script>
+
+    <script>
+        var myRuler = new ruler({
+            container: document.querySelector('#rulers'),// reference to DOM element to apply rulers on
+            rulerHeight: 15, // thickness of ruler
+            fontFamily: 'arial',// font for points
+            fontSize: '8px',
+            strokeStyle: 'black',
+            lineWidth: 1,
+            enableMouseTracking: true,
+            enableToolTip: true
+        });
+
+        myRuler.api.setPos({x:500, y:500})
+
+        myRuler.api.setScale(10);
+    </script>
+</body>
+
+</html>

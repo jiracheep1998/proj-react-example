@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG Line Drawing with Hammer.js</title>
+    <style>
+        svg {
+            border: 1px solid black;
+            width: 100%;
+            height: 500px;
+        }
+    </style>
+</head>
+<body>
+    <svg id="drawing-area"></svg>
+    <script src="https://hammerjs.github.io/dist/hammer.min.js"></script>
+    <script>
+        const svg = document.getElementById('drawing-area');
+        let isDrawing = false;
+        let currentLine = null;
+        let startPoint = { x: 0, y: 0 };
+
+        const hammer = new Hammer(svg);
+
+        hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL, threshold: 0 });
+
+        hammer.on('panstart', (event) => {
+            isDrawing = true;
+            startPoint = getMousePosition(event);
+            currentLine = createLine(startPoint);
+            svg.appendChild(currentLine);
+        });
+
+        hammer.on('panmove', (event) => {
+            if (!isDrawing) return;
+            const endPoint = getMousePosition(event);
+            updateLine(currentLine, startPoint, endPoint);
+        });
+
+        hammer.on('panend pancancel', () => {
+            isDrawing = false;
+        });
+
+        function getMousePosition(event) {
+            const rect = svg.getBoundingClientRect();
+            return {
+                x: event.center.x - rect.left,
+                y: event.center.y - rect.top
+            };
+        }
+
+        function createLine(startPoint) {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', startPoint.x);
+            line.setAttribute('y1', startPoint.y);
+            line.setAttribute('x2', startPoint.x);
+            line.setAttribute('y2', startPoint.y);
+            line.setAttribute('stroke', 'black');
+            line.setAttribute('stroke-width', 2);
+            return line;
+        }
+
+        function updateLine(line, startPoint, endPoint) {
+            line.setAttribute('x2', endPoint.x);
+            line.setAttribute('y2', endPoint.y);
+        }
+    </script>
+</body>
+</html>

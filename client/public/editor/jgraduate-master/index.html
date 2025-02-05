@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html><head>
+	<link type="text/css" rel="stylesheet" href="css/jgraduate.css"/>
+	<link type="text/css" rel="stylesheet" href="css/jPicker.css"/>
+	<style type="text/css">
+		#grad_picker { display: none; }
+		.button {
+			border: solid 1px darkgrey;
+			background-color: white;
+			width: 50px; height: 50px;
+			cursor: pointer;
+		}
+	</style>
+	<script type="text/javascript" src="jquery.js"></script>
+	<script type="text/javascript" src="jpicker.min.js"></script>
+	<script type="text/javascript" src="jquery.jgraduate.js"></script>
+	<script type="text/javascript">
+	$(function() {
+		var launchPicker = function(elem, paint) {
+			var pos = elem.position();
+			$('#gradPicker').css({'left': pos.left, 'top': pos.top}).jGraduate(
+				{ 
+					paint: paint,
+					window: { pickerTitle: "Pick a paint for the demo", },
+				}, 
+				function(p) {
+					$('#r').attr('fill-opacity', p.alpha/100);
+					if (p.type == "linearGradient") {
+						var oldgrad = document.getElementById("grad");
+						var newgrad = document.importNode(p.linearGradient, true);
+						newgrad.id = "grad";
+						// replace the old gradient with the new one
+						var parent = oldgrad.parentNode;
+						parent.replaceChild(newgrad, oldgrad);
+						$('#r').attr('fill', 'url(#grad)');
+					} else if (p.type == "radialGradient") {
+						var oldgrad = document.getElementById("grad");
+						var newgrad = document.importNode(p.radialGradient, true);
+						newgrad.id = "grad";
+						// replace the old gradient with the new one
+						var parent = oldgrad.parentNode;
+						parent.replaceChild(newgrad, oldgrad);
+						$('#r').attr('fill', 'url(#grad)');
+					}
+					else { // solid color
+						$('#r').attr('fill', (p.solidColor!='none'?'#':'') +p.solidColor);
+					}
+				},
+				function(p) {});
+		};
+		
+		var svgdoc = new DOMParser().parseFromString(
+			'<svg xmlns="http://www.w3.org/2000/svg">\
+				<radialGradient id="grad" spreadMethod="pad" r="1.1624701142567029" cx="0.24609375" cy="0.26966148614883423">\
+					<stop stop-color="#ffcb6b" offset="0.06640625"/>\
+					<stop stop-color="#ffff60" offset="0.12890625"/>\
+					<stop stop-color="#91b3f7" offset="0.33203125"/>\
+					<stop stop-color="#3fc2ff" offset="1.0"/>\
+				</radialGradient>\
+				<rect id="r" width="100%" height="100%" fill="url(#grad)"/>\
+			</svg>', 'text/xml');
+
+		$('#button1').append( document.importNode(svgdoc.documentElement,true) );
+		$('#button1').click(function() { 
+			var paint = new $.jGraduate.Paint();
+			var rect = $("#r");
+			var alpha = rect.attr("fill-opacity")*100 || 100;
+			fill = rect.attr("fill");
+			var grad = document.getElementById("grad")
+			if (fill == "url(#grad)" && grad.tagName == "linearGradient") {
+				paint = new $.jGraduate.Paint({alpha: alpha, linearGradient: grad});
+			} else if(fill == "url(#grad)" && grad.tagName == "radialGradient") {
+				paint = new $.jGraduate.Paint({alpha: alpha, radialGradient: grad});
+			} else {
+				paint = new $.jGraduate.Paint({alpha: alpha, solidColor: fill.substr(1)});
+			}
+			launchPicker($(this), paint); 
+		});
+	});
+	</script>
+	<title>jGraduate Test Page</title>
+</head><body>
+	<div id="gradPicker"></div>
+	<p>This is a demo of the <a href="http://jgraduate.googlecode.com/">jGraduate jQuery plugin</a>.</p>
+	<div id="button1" class="button"></div>	
+	<p>Click the box to change the gradient.</p>
+</body></html>

@@ -1,0 +1,28 @@
+#box [model]:hover{
+    opacity: 0.5;
+    cursor: pointer;
+}
+
+.svg-group-editor:hover{
+    opacity: 0.5;
+    cursor: pointer;
+}
+
+.modal-content {
+    border: 0;
+    border-radius: 0;
+}
+
+.tool-scale-translate button{
+    font-size: 12px !important;
+}
+
+#modal-editor .tool{
+    cursor: pointer;
+    user-select: none;
+}
+
+#modal-editor .tool:hover{
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}

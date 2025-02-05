@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SVG Rect Drawing with Hammer.js</title>
+  <style>
+    svg {
+      border: 1px solid black;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+</head>
+<body>
+  <svg id="drawingArea" width="600" height="400"></svg>
+
+  <script>
+    const svg = document.getElementById('drawingArea');
+    const hammer = new Hammer(svg);
+
+    hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL, threshold: 0 });
+
+    let isDrawing = false;
+    let rect, startX, startY;
+
+    hammer.on('panstart', (e) => {
+      startX = e.center.x - svg.getBoundingClientRect().left;
+      startY = e.center.y - svg.getBoundingClientRect().top;
+      isDrawing = true;
+
+      rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', startX);
+      rect.setAttribute('y', startY);
+      rect.setAttribute('width', 0);
+      rect.setAttribute('height', 0);
+      rect.setAttribute('fill', 'none');
+      rect.setAttribute('stroke', '#000');
+      rect.setAttribute('stroke-width', 1);
+      rect.setAttribute('stroke-dasharray', 4);
+      rect.setAttribute('shape-rendering', 'crispEdges');
+      svg.appendChild(rect);
+    });
+
+    hammer.on('panmove', (e) => {
+      if (!isDrawing) return;
+
+      const currentX = e.center.x - svg.getBoundingClientRect().left;
+      const currentY = e.center.y - svg.getBoundingClientRect().top;
+
+      const width = Math.abs(currentX - startX);
+      const height = Math.abs(currentY - startY);
+
+      rect.setAttribute('width', width);
+      rect.setAttribute('height', height);
+
+      if (currentX < startX) {
+        rect.setAttribute('x', currentX);
+      }
+
+      if (currentY < startY) {
+        rect.setAttribute('y', currentY);
+      }
+    });
+
+    hammer.on('panend', () => {
+      isDrawing = false;
+      rect.removeAttribute('fill');
+      rect.removeAttribute('stroke');
+      rect.removeAttribute('stroke-width');
+      rect.removeAttribute('stroke-dasharray');
+      rect.removeAttribute('shape-rendering');
+      rect = null;
+    });
+
+    hammer.on('pancancel', () => {
+      isDrawing = false;
+      if (rect) {
+        svg.removeChild(rect);
+        rect = null;
+      }
+    });
+  </script>
+</body>
+</html>

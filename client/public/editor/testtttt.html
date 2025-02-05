@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SVG Zoom and Pan</title>
+<style>
+  svg {
+    border: 1px solid black;
+  }
+</style>
+</head>
+<body>
+
+<svg id="svgCanvas" width="800" height="600" viewBox="0 0 800 600">
+  <!-- Your SVG content goes here -->
+  <rect x="100" y="100" width="100" height="100" fill="red" />
+</svg>
+
+<script>
+const svg = document.getElementById('svgCanvas');
+let viewBox = svg.getAttribute('viewBox').split(' ').map(Number);
+let scale = 1;
+
+svg.addEventListener('wheel', (event) => {
+  event.preventDefault();
+  
+  const zoomFactor = Math.exp(event.deltaY * -0.01);
+  scale *= zoomFactor;
+  
+  const mouseX = event.clientX - svg.getBoundingClientRect().left;
+  const mouseY = event.clientY - svg.getBoundingClientRect().top;
+  
+  const svgRect = svg.getBoundingClientRect();
+  const viewBoxWidth = viewBox[2];
+  const viewBoxHeight = viewBox[3];
+
+  const x = (mouseX / svgRect.width) * viewBoxWidth + viewBox[0];
+  const y = (mouseY / svgRect.height) * viewBoxHeight + viewBox[1];
+
+  viewBox[0] = x - (x - viewBox[0]) * zoomFactor;
+  viewBox[1] = y - (y - viewBox[1]) * zoomFactor;
+  viewBox[2] = viewBoxWidth * zoomFactor;
+  viewBox[3] = viewBoxHeight * zoomFactor;
+  
+  svg.setAttribute('viewBox', viewBox.join(' '));
+});
+
+let isPanning = false;
+let startX, startY;
+
+svg.addEventListener('mousedown', (event) => {
+  isPanning = true;
+  startX = event.clientX;
+  startY = event.clientY;
+});
+
+svg.addEventListener('mousemove', (event) => {
+  if (!isPanning) return;
+  
+  const dx = (event.clientX - startX) / scale;
+  const dy = (event.clientY - startY) / scale;
+  
+  viewBox[0] -= dx;
+  viewBox[1] -= dy;
+  
+  svg.setAttribute('viewBox', viewBox.join(' '));
+  
+  startX = event.clientX;
+  startY = event.clientY;
+});
+
+svg.addEventListener('mouseup', () => {
+  isPanning = false;
+});
+
+svg.addEventListener('mouseleave', () => {
+  isPanning = false;
+});
+</script>
+
+</body>
+</html>

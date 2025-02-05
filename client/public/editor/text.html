@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG Text Cursor</title>
+    <style>
+        #cursor {
+            stroke: red;
+            stroke-width: 1px;
+        }
+    </style>
+</head>
+
+<body>
+    <svg id="draw" width="600" height="200">
+        <text id="text" x="0" y="100" font-size="30" font-family="Arial" font-style="_italic">
+           <tspan x="10" dy="0">TEST</tspan>
+           <tspan x="0" dy="1.2em">TEST</tspan>
+        </text>
+        <line id="cursor" x1="0" y1="0" x2="0" y2="0" visibility="hidden" />
+    </svg>
+
+    <script>
+        const text = document.getElementById('text');
+        const cursor = document.getElementById('cursor');
+
+        text.addEventListener('click', (event) => {
+            const pt = text.ownerSVGElement.createSVGPoint();
+            pt.x = event.clientX;
+            pt.y = event.clientY;
+
+            const cursorPt = pt.matrixTransform(text.getScreenCTM().inverse());
+
+            // const numChars = text.getNumberOfChars();
+            // const lastCharIndex = numChars - 1;
+            // const lastCharBBox = text.getExtentOfChar(lastCharIndex);
+
+            // console.log(text.getNumberOfChars())
+
+            const line = getLineAtPoint(text, cursorPt.x, cursorPt.y);
+
+            if (line) {
+                cursor.setAttribute('x1', line.x1);
+                cursor.setAttribute('y1', line.y1);
+                cursor.setAttribute('x2', line.x2);
+                cursor.setAttribute('y2', line.y2);
+            }
+
+            // if (charIndex === -1 || cursorPt.x > lastCharBBox.x + lastCharBBox.width) {
+            //     // คลิกที่ตำแหน่งนอกข้อความหรือเกินขอบเขตอักขระตัวสุดท้าย
+            //     cursor.setAttribute('x1', lastCharBBox.x);
+            //     cursor.setAttribute('y1', lastCharBBox.y);
+            //     cursor.setAttribute('x2', lastCharBBox.x);
+            //     cursor.setAttribute('y2', lastCharBBox.y + lastCharBBox.height);
+            // } else {
+            //     // คลิกภายในข้อความ
+            //     const charBBox = text.getExtentOfChar(charIndex);
+            //     cursor.setAttribute('x1', charBBox.x);
+            //     cursor.setAttribute('y1', charBBox.y);
+            //     cursor.setAttribute('x2', charBBox.x);
+            //     cursor.setAttribute('y2', charBBox.y + charBBox.height);
+            // }
+
+            cursor.setAttribute('visibility', 'visible');
+        });
+
+        function getLineAtPoint(textElem, x, y) {
+
+            const numChars = textElem.getNumberOfChars();
+
+            let line = null;
+
+            for (let i = 0; i < numChars; i++) {
+                const charBBox = textElem.getExtentOfChar(i);
+
+                let x1 = charBBox.x;
+                let y1 = charBBox.y;
+                let x2 = charBBox.x;
+                let y2 = charBBox.y + charBBox.height;
+
+                let x3 = charBBox.x + charBBox.width;
+                let y3 = charBBox.y;
+                let x4 = charBBox.x + charBBox.width;
+                let y4 = charBBox.y + charBBox.height;
+
+                let center = {
+                    x1: charBBox.x + (charBBox.width / 2),
+                    y1: charBBox.y,
+                    x2: charBBox.x + (charBBox.width / 2),
+                    y2: charBBox.y + charBBox.height
+                }
+
+                if (x <= center.x1 && x >= x1 && y >= y1 && y <= y2) {
+                    line = {
+                        x1: x1,
+                        y1: y1,
+                        x2: x2,
+                        y2: y2
+                    }
+                    break;
+                } else if (x >= center.x1 && x <= x3 && y >= y1 && y <= y2) {
+                    line = {
+                        x1: x3,
+                        y1: y3,
+                        x2: x4,
+                        y2: y4
+                    }
+                    break;
+                }
+
+            }
+
+            return line;
+        }
+    </script>
+</body>
+
+</html>

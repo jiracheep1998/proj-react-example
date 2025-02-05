@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Width with End Scroll</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        #content {
+            width: 100%;
+            height: 100vh; /* ให้ content มีความสูงเท่ากับ viewport height */
+            background-color: #f0f0f0;
+            white-space: nowrap; /* ไม่ให้ข้อความขึ้นบรรทัดใหม่ */
+            overflow-x: auto; /* ให้เกิดการ scroll ในแนวนอน */
+        }
+        #inner-content {
+            display: inline-block; /* ทำให้ content ภายในเรียงต่อกัน */
+            padding: 20px; /* ตัวอย่างการใส่ padding */
+        }
+    </style>
+</head>
+<body>
+    <div id="content">
+        <div id="inner-content">
+            <!-- เนื้อหาที่ต้องการให้มีการเพิ่มความกว้างตามที่ scroll ไป -->
+            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nulla convallis libero sed eros gravida, et placerat enim pharetra. Donec nec purus vitae ex iaculis euismod.</p>
+        </div>
+    </div>
+
+    <script>
+        var content = document.getElementById('content');
+        var innerContent = document.getElementById('inner-content');
+
+        var initialWidth = innerContent.offsetWidth; // ความกว้างเริ่มต้นของ inner-content
+
+        window.addEventListener('scroll', function() {
+            var scrollWidth = content.scrollLeft + content.clientWidth;
+            var documentWidth = innerContent.offsetWidth;
+
+            // เมื่อ scrollWidth มากกว่าหรือเท่ากับ initialWidth + 20px (หรือค่าที่ต้องการ)
+            if (scrollWidth >= initialWidth + 20) {
+                // เพิ่มความกว้าง content
+                innerContent.style.width = (documentWidth + 200) + 'px';
+                // scroll ไปที่ตำแหน่งล่าสุดของ content
+                content.scrollLeft = innerContent.offsetWidth - content.clientWidth;
+            }
+        });
+    </script>
+</body>
+</html>

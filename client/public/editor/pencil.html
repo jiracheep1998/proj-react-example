@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG Pencil Drawing with Hammer.js</title>
+    <style>
+        svg {
+            border: 1px solid black;
+            width: 100%;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <svg id="drawingArea"></svg>
+    <script src="https://hammerjs.github.io/dist/hammer.min.js"></script>
+    <script>
+        const svg = document.getElementById('drawingArea');
+        let isDrawing = false;
+        let path, d;
+
+        const hammer = new Hammer(svg);
+
+        hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL, threshold: 0 });
+
+        hammer.on('panstart', startDrawing);
+        hammer.on('panmove', draw);
+        hammer.on('panend', stopDrawing);
+
+        function startDrawing(event) {
+            isDrawing = true;
+            const { center } = event;
+            const { x, y } = getSvgCoordinates(center);
+
+            d = `M ${x} ${y}`;
+            path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', d);
+            path.setAttribute('stroke', 'black');
+            path.setAttribute('stroke-width', 2);
+            path.setAttribute('fill', 'none');
+
+            svg.appendChild(path);
+        }
+
+        function draw(event) {
+            if (!isDrawing) return;
+
+            const { center } = event;
+            const { x, y } = getSvgCoordinates(center);
+            d += ` L ${x} ${y}`;
+            path.setAttribute('d', d);
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function getSvgCoordinates(point) {
+            const svgRect = svg.getBoundingClientRect();
+            return {
+                x: point.x - svgRect.left,
+                y: point.y - svgRect.top
+            };
+        }
+    </script>
+</body>
+</html>

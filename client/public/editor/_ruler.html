@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruler</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div id="editor" style="width: 100%; height: 100vh; background-color: #fff;"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"
+        integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+
+    <script src="viewer.js"></script>
+    <script>
+
+        let viewer = new Viewer('editor', {
+            background: {
+                width: 800,
+                height: 600,
+                fill: '#fff'
+            }
+        });
+
+        $(viewer.content).html('<path id="svg_1" d="M189,133C364,126 345,358 314,380C283,402 139,350 140,345C141,340 14,140 189,133z" opacity="NaN" stroke="#000" fill="#fff" style="pointer-events:inherit"></path>')
+
+
+    </script>
+
+</body>
+
+</html>

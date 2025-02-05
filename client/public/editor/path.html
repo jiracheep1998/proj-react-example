@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG Path Drawing with Hammer.js</title>
+    <style>
+        svg {
+            border: 1px solid black;
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+
+<body>
+    <svg id="drawingArea" width="800" height="600"></svg>
+
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script>
+        class EventEmitter {
+            constructor() {
+                this.events = {};
+            }
+
+            on(event, listener) {
+                if (!this.events[event]) {
+                    this.events[event] = [];
+                }
+                this.events[event].push(listener);
+            }
+
+            emit(event, args) {
+                if (this.events[event]) {
+                    this.events[event].forEach(listener => listener(args));
+                }
+            }
+        }
+
+        const svg = document.getElementById('drawingArea');
+
+        let type = 'draw';
+        let arrayPath = [];
+        let count = 0;
+        let points = [];
+        let path = null;
+
+        let guideLine = null;
+        let guideCircle1 = null;
+        let guideCircle2 = null;
+
+        let guideCurve = null;
+
+        let pathData = [];
+        let isDragging = false;
+        let isCurve = false;
+        let startDragPoint = null;
+        let currentCurveControlPoint1 = null;
+        let currentCurveControlPoint2 = null;
+        let currentCurveEndPoint = null;
+
+        let currentCurvePoint1 = null;
+        let currentCurvePoint2 = null;
+
+        let nodePoint = null;
+
+        let lineGuide = null;
+
+        let edit = null;
+
+        let pathNodeTap = 0;
+
+        const eventEmitter = new EventEmitter();
+
+        const hammer = new Hammer(svg);
+
+        hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL, threshold: 0 });
+        hammer.get('press').set({ time: 0 });
+
+        hammer.on('press', (evt) => handleHammerEvent('press', evt));
+        hammer.on('panmove', (evt) => handleHammerEvent('panmove', evt));
+        hammer.on('panend', (evt) => handleHammerEvent('panend', evt));
+
+        svg.addEventListener('mousemove', (evt) => eventEmitter.emit('mousemove', evt));
+
+        function editPath(id) {
+
+            renderPathObject(id);
+
+            let pathNode = document.getElementById('path-node-points');
+            let lineGuide = document.getElementById('line-guide');
+
+            if (pathNode) {
+                pathNode.innerHTML = '';
+            }
+
+            if (lineGuide) {
+                lineGuide.innerHTML = '';
+            }
+
+            let data;
+
+            if (data = arrayPath[id]) {
+                segment = data.pathData;
+
+                for (let i = 0; i < segment.length; i++) {
+
+                    let command = segment[i][0].toLowerCase();
+
+                    if (command === 'm') {
+
+                        let node = createNodePoints(segment[i][1], segment[i][2]);
+                        node.setAttribute('data', id);
+                        node.setAttribute('data-control-index', i);
+
+                    }
+
+                    if (command === 'c') {
+
+                        if ((segment[0][1] + segment[0][2]) != (segment[i][5] + segment[i][6])) {
+                            let node = createNodePoints(segment[i][5], segment[i][6]);
+                            node.setAttribute('data', id);
+                            node.setAttribute('data-control-index', i);
+                        }
+
+                        let prev = segment[i - 1];
+
+                        if (prev && prev[0].toLowerCase() === 'm' && segment[i][0].toLowerCase() === 'c') {
+
+                            let curve1 = createLineGuide({
+                                x: prev[1],
+                                y: prev[2]
+                            }, {
+                                x: segment[i][1],
+                                y: segment[i][2]
+                            }, 0);
+
+                            curve1.setAttribute('data', id);
+                            curve1.setAttribute('data-control-index', i - 1);
+
+                            if ((prev[1] + prev[2]) === (segment[i][1] + segment[i][2])) {
+                                curve1.setAttribute('pointer-events', 'none');
+                                curve1.setAttribute('fill-opacity', 0);
+                            }
+
+                            let curve2 = createLineGuide({
+                                x: segment[i][5],
+                                y: segment[i][6]
+                            }, {
+                                x: segment[i][3],
+                                y: segment[i][4]
+                            }, 1);
+
+                            curve2.setAttribute('data', id);
+                            curve2.setAttribute('data-control-index', i);
+
+                            if ((segment[i][3] + segment[i][4]) === (segment[i][5] + segment[i][6])) {
+                                curve2.setAttribute('pointer-events', 'none');
+                                curve2.setAttribute('fill-opacity', 0);
+                            }
+                        }
+
+                        if (prev && prev[0].toLowerCase() === 'c' && segment[i][0].toLowerCase() === 'c') {
+
+                            let curve1 = createLineGuide({
+                                x: prev[5],
+                                y: prev[6]
+                            }, {
+                                x: segment[i][1],
+                                y: segment[i][2]
+                            }, 0);
+
+                            curve1.setAttribute('data', id);
+                            curve1.setAttribute('data-control-index', i - 1);
+
+                            if ((prev[5] + prev[6]) === (segment[i][1] + segment[i][2])) {
+                                curve1.setAttribute('pointer-events', 'none');
+                                curve1.setAttribute('fill-opacity', 0);
+                            }
+
+                            let curve2 = createLineGuide({
+                                x: segment[i][5],
+                                y: segment[i][6]
+                            }, {
+                                x: segment[i][3],
+                                y: segment[i][4]
+                            }, 1);
+
+                            let j = i;
+
+                            if (segment[segment.length - 1][0].toLowerCase() === 'z') {
+                                if (i === (segment.length - 2)) {
+                                    j = 0;
+                                }
+                            }
+
+                            curve2.setAttribute('data', id);
+                            curve2.setAttribute('data-control-index', j);
+
+                            if ((segment[i][3] + segment[i][4]) === (segment[i][5] + segment[i][6])) {
+                                curve2.setAttribute('pointer-events', 'none');
+                                curve2.setAttribute('fill-opacity', 0);
+                            }
+
+                        }
+
+                    }
+                }
+            }
+        }
+
+        function getMousePosition(evt) {
+            const CTM = svg.getScreenCTM();
+            return {
+                x: (evt.clientX - CTM.e) / CTM.a,
+                y: (evt.clientY - CTM.f) / CTM.d
+            };
+        }
+
+        function getTouchPosition(evt) {
+            const CTM = svg.getScreenCTM();
+            const touch = evt.center;
+            return {
+                x: (touch.x - CTM.e) / CTM.a,
+                y: (touch.y - CTM.f) / CTM.d
+            };
+        }
+
+        function createLineGuide(node, point, type) {
+
+            const angle = Math.atan2(point.y - node.y, point.x - node.x);
+            const dist = Math.sqrt(Math.pow(point.x - node.x, 2) + Math.pow(point.y - node.y, 2));
+
+            let x1 = node.x + dist * Math.cos(angle);
+            let y1 = node.y + dist * Math.sin(angle);
+
+            if (!lineGuide) {
+                lineGuide = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                lineGuide.setAttribute('id', 'line-guide');
+                svg.appendChild(lineGuide);
+            }
+
+            let guideLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            guideLine.setAttribute('pointer-events', 'none');
+            guideLine.setAttribute('stroke', '#4F80FF');
+            guideLine.setAttribute('stroke-width', 1);
+            lineGuide.appendChild(guideLine);
+
+            let guideCircle1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            guideCircle1.setAttribute('class', 'path-curve');
+            guideCircle1.setAttribute('point-x', x1);
+            guideCircle1.setAttribute('point-y', y1);
+            guideCircle1.setAttribute('type', type);
+            guideCircle1.setAttribute('cx', x1);
+            guideCircle1.setAttribute('cy', y1);
+            guideCircle1.setAttribute('r', 3);
+            guideCircle1.setAttribute('fill', '#4F80FF');
+            lineGuide.appendChild(guideCircle1);
+
+            guideLine.setAttribute('x1', node.x);
+            guideLine.setAttribute('y1', node.y);
+            guideLine.setAttribute('x2', x1);
+            guideLine.setAttribute('y2', y1);
+
+            guideCircle1.setAttribute('cx', x1);
+            guideCircle1.setAttribute('cy', y1);
+
+            return guideCircle1;
+        }
+
+        function createNodePoints(x, y) {
+
+            if (!nodePoint) {
+                nodePoint = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                nodePoint.setAttribute('id', 'path-node-points');
+                svg.appendChild(nodePoint);
+            }
+
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('class', 'path-node');
+            rect.setAttribute('x', x - (5 / 2));
+            rect.setAttribute('y', y - (5 / 2));
+            rect.setAttribute('point-x', x);
+            rect.setAttribute('point-y', y);
+            rect.setAttribute('width', 5);
+            rect.setAttribute('height', 5);
+            rect.setAttribute('fill', '#fff');
+            rect.setAttribute('stroke', '#4F80FF');
+            rect.setAttribute('stroke-width', 1);
+            rect.setAttribute('shape-rendering', 'crispEdges');
+            nodePoint.appendChild(rect);
+
+            return rect;
+        }
+
+        function removeNodePoints() {
+            nodePoint.remove();
+            nodePoint = null;
+
+        }
+
+        function closePath() {
+
+            pathData.push(['Z']);
+            renderPath();
+
+            arrayPath['path-' + count] = {
+                pathData: pathData
+            };
+
+            points = [];
+            // path = null;
+            pathData = [];
+
+            startDragPoint = null;
+            currentCurveControlPoint1 = null;
+            currentCurveControlPoint2 = null;
+            currentCurveEndPoint = null;
+
+            currentCurvePoint1 = null;
+            currentCurvePoint2 = null;
+
+            removeGuide();
+            removeNodePoints();
+
+            count += 1;
+
+            type = 'edit';
+
+            editPath('path-0');
+        }
+
+        function removeGuide() {
+            if (guideLine) {
+                svg.removeChild(guideLine);
+                guideLine = null;
+            }
+
+            if (guideCircle1) {
+                svg.removeChild(guideCircle1);
+                guideCircle1 = null;
+            }
+
+            if (guideCircle2) {
+                svg.removeChild(guideCircle2);
+                guideCircle2 = null;
+            }
+
+            if (guideCurve) {
+                svg.removeChild(guideCurve);
+                guideCurve = null;
+            }
+        }
+
+        function updateGuideCurve(pos) {
+
+            if (!guideCurve) {
+                guideCurve = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                guideCurve.setAttribute('fill', 'none');
+                guideCurve.setAttribute('stroke', '#4F80FF');
+                guideCurve.setAttribute('stroke-width', 1);
+                svg.appendChild(guideCurve);
+            }
+
+            let point1 = currentCurvePoint1 || points[points.length - 1];
+            let point2 = pos;
+            let point3 = pos;
+
+            const snapPoint = getSnapPoint(pos);
+            if (snapPoint) {
+
+                if (points.length > 1 && pathData.length > 1) {
+                    if (snapPoint.x === points[0].x && snapPoint.y === points[0].y) {
+
+                        const angle = Math.atan2(pathData[1][2] - points[0].y, pathData[1][1] - points[0].x);
+                        const dist = Math.sqrt(Math.pow(points[0].x - pathData[1][1], 2) + Math.pow(points[0].y - pathData[1][2], 2));
+
+                        let x2 = points[0].x - dist * Math.cos(angle);
+                        let y2 = points[0].y - dist * Math.sin(angle);
+
+                        point2 = {
+                            x: x2,
+                            y: y2
+                        }
+
+                        point3 = snapPoint;
+
+                    }
+                }
+            }
+
+            let d = 'M' + points[points.length - 1].x + ' ' + points[points.length - 1].y + ' C ' + point1.x + ' ' + point1.y + ' ' + point2.x + ' ' + point2.y + ' ' + point3.x + ' ' + point3.y;
+
+            guideCurve.setAttribute('d', d);
+        }
+
+        function updateGuideLine(pos) {
+
+            const angle = Math.atan2(pos.y - startDragPoint.y, pos.x - startDragPoint.x);
+            const dist = Math.sqrt(Math.pow(startDragPoint.x - pos.x, 2) + Math.pow(startDragPoint.y - pos.y, 2));
+            let x1 = startDragPoint.x + dist * Math.cos(angle);
+            let y1 = startDragPoint.y + dist * Math.sin(angle);
+            let x2 = startDragPoint.x - dist * Math.cos(angle);
+            let y2 = startDragPoint.y - dist * Math.sin(angle);
+
+            if (!guideLine) {
+                guideLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                guideLine.setAttribute('stroke', '#4F80FF');
+                guideLine.setAttribute('stroke-width', 1);
+                svg.appendChild(guideLine);
+            }
+
+            if (!guideCircle1) {
+                guideCircle1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                guideCircle1.setAttribute('cx', x1);
+                guideCircle1.setAttribute('cy', y1);
+                guideCircle1.setAttribute('r', 3);
+                guideCircle1.setAttribute('fill', '#4F80FF');
+                svg.appendChild(guideCircle1);
+            }
+
+            if (!guideCircle2) {
+                guideCircle2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                guideCircle2.setAttribute('cx', x2);
+                guideCircle2.setAttribute('cy', y2);
+                guideCircle2.setAttribute('r', 3);
+                guideCircle2.setAttribute('fill', '#4F80FF');
+                svg.appendChild(guideCircle2);
+            }
+
+            guideLine.setAttribute('x1', x1);
+            guideLine.setAttribute('y1', y1);
+            guideLine.setAttribute('x2', x2);
+            guideLine.setAttribute('y2', y2);
+
+            guideCircle1.setAttribute('cx', x1);
+            guideCircle1.setAttribute('cy', y1);
+
+            guideCircle2.setAttribute('cx', x2);
+            guideCircle2.setAttribute('cy', y2);
+        }
+
+        function renderPath() {
+            if (path) {
+                let d = '';
+                pathData.forEach(segment => {
+                    d += segment.join(' ') + ' ';
+                });
+                path.setAttribute('d', d.trim());
+            }
+        }
+
+        function renderPathObject(id) {
+
+            let svgpath = document.getElementById(id);
+
+            if (!svgpath) {
+                svgpath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                svgpath.setAttribute('id', id);
+                svgpath.setAttribute('fill', '#fff');
+                svgpath.setAttribute('stroke', 'black');
+                svgpath.setAttribute('stroke-width', 1);
+                svg.appendChild(svgpath);
+            }
+
+            let pathData = arrayPath[id].pathData;
+
+            let d = '';
+            pathData.forEach(segment => {
+                d += segment.join(' ') + ' ';
+            });
+            svgpath.setAttribute('d', d.trim());
+
+        }
+
+        function handleHammerEvent(event, evt) {
+            eventEmitter.emit(event, evt);
+        }
+
+        function path_node(target) {
+            pathNodeTap++;
+
+            let pathID = target.getAttribute('data');
+            let pathIndex = target.getAttribute('data-control-index');
+
+            let pointX = target.getAttribute('point-x');
+            let pointY = target.getAttribute('point-y');
+
+            pointX = Number(pointX);
+            pointY = Number(pointY);
+
+            pathIndex = Number(pathIndex);
+
+            let pathData = arrayPath[pathID].pathData;
+            let length = pathData.length - 1;
+
+            let z = false;
+
+            if (pathData[pathData.length - 1][0].toLowerCase() === 'z') {
+                length = pathData.length - 2;
+                z = true;
+            }
+
+            let current = pathData[pathIndex];
+            let next = pathData[pathIndex + 1];
+            let close = pathData[length];
+
+            edit = {
+                id: pathID,
+                class: 'path-node',
+                point: {
+                    x: pointX,
+                    y: pointY
+                },
+                data: [],
+                guide: document.querySelectorAll('circle[data-control-index="' + pathIndex + '"]')
+            }
+
+            if (current && !next) {
+
+                if (current[0].toLowerCase() === 'm') {
+                    edit.data = [
+                        { command: 'M', index: pathIndex, ix: 1, iy: 2, x: current[1], y: current[2] },
+                    ]
+                }
+
+                if (current[0].toLowerCase() === 'c') {
+                    edit.data = [
+                        { command: 'C', index: pathIndex, ix: 3, iy: 4, x: current[3], y: current[4] },
+                        { command: 'C', index: pathIndex, ix: 5, iy: 6, x: current[5], y: current[6] },
+                    ]
+                }
+            }
+
+
+            if (current && next) {
+
+                if (current[0].toLowerCase() === 'm' && next[0].toLowerCase() === 'c') {
+
+                    edit.data = [
+                        { command: 'M', index: pathIndex, ix: 1, iy: 2, x: current[1], y: current[2] },
+                        { command: 'C', index: (pathIndex + 1), ix: 1, iy: 2, x: next[1], y: next[2] }
+                    ]
+
+                    if (z) {
+                        edit.data.push({ command: 'C', index: length, ix: 3, iy: 4, x: close[3], y: close[4] });
+                        edit.data.push({ command: 'C', index: length, ix: 5, iy: 6, x: close[5], y: close[6] });
+                    }
+                }
+
+                if (current[0].toLowerCase() === 'c' && next[0].toLowerCase() === 'c') {
+                    edit.data = [
+                        { command: 'C', index: pathIndex, ix: 3, iy: 4, x: current[3], y: current[4] },
+                        { command: 'C', index: pathIndex, ix: 5, iy: 6, x: current[5], y: current[6] },
+                        { command: 'C', index: (pathIndex + 1), ix: 1, iy: 2, x: next[1], y: next[2] }
+                    ]
+                }
+            }
+        }
+
+        function path_curve(target) {
+
+            let pathID = target.getAttribute('data');
+            let pathIndex = target.getAttribute('data-control-index');
+
+            let pointX = target.getAttribute('point-x');
+            let pointY = target.getAttribute('point-y');
+
+            let type = target.getAttribute('type');
+
+            pointX = Number(pointX);
+            pointY = Number(pointY);
+
+            type = Number(type);
+
+            pathIndex = Number(pathIndex);
+
+            let pathData = arrayPath[pathID].pathData;
+            let length = pathData.length - 1;
+
+            let z = false;
+
+            if (pathData[pathData.length - 1][0].toLowerCase() === 'z') {
+                length = pathData.length - 2;
+                z = true;
+            }
+
+            let current = pathData[pathIndex];
+            let next = pathData[pathIndex + 1];
+            let close = pathData[length];
+
+            edit = {
+                id: pathID,
+                class: 'path-curve',
+                point: {
+                    x: pointX,
+                    y: pointY
+                },
+                type: type,
+                data: []
+            }
+
+            if (current && !next) {
+
+                if (current[0].toLowerCase() === 'm') {
+                    edit.data = [
+                        { command: 'M', index: (pathIndex + 1), ix: 1, iy: 2, x: current[1], y: current[2] }
+                    ]
+                }
+
+                if (current[0].toLowerCase() === 'c') {
+                    edit.data = [
+                        { command: 'C', index: pathIndex, ix: 3, iy: 4, x: current[3], y: current[4] },
+                    ]
+                }
+            }
+
+            if (current && next) {
+
+                if (current[0].toLowerCase() === 'm' && next[0].toLowerCase() === 'c') {
+                    edit.data = [
+                        { command: 'C', index: (pathIndex + 1), ix: 1, iy: 2, x: next[1], y: next[2] }
+                    ]
+
+                    if (z) {
+                        edit.data.push({ command: 'C', index: length, ix: 3, iy: 4, x: close[3], y: close[4] });
+                    }
+                }
+
+                if (current[0].toLowerCase() === 'c' && next[0].toLowerCase() === 'c') {
+                    edit.data = [
+                        { command: 'C', index: pathIndex, ix: 3, iy: 4, x: current[3], y: current[4] },
+                        { command: 'C', index: (pathIndex + 1), ix: 1, iy: 2, x: next[1], y: next[2] }
+                    ]
+                }
+            }
+        }
+
+        eventEmitter.on('press', (evt) => {
+
+            if (type === 'edit') {
+
+                let target = evt.target;
+                let className = target.className.baseVal
+
+                if (className === 'path-node') {
+
+                    path_node(target);
+
+                }
+
+                if (className === 'path-curve') {
+
+                    path_curve(target);
+
+                }
+
+
+            }
+
+            if (type === 'draw') {
+
+                startDragPoint = getTouchPosition(evt);
+                isDragging = true;
+                isCurve = false;
+
+                if (isDragging) {
+                    isCurve = true;
+                    let pos = startDragPoint;
+
+                    const snapPoint = getSnapPoint(pos);
+                    if (snapPoint) {
+                        pos = snapPoint;
+                        startDragPoint = snapPoint;
+
+                        if (snapPoint.x === points[points.length - 1].x && snapPoint.y === points[points.length - 1].y) {
+                            return;
+                        }
+                    }
+
+                    if (points.length === 0) {
+                        pathData.push(['M', pos.x, pos.y]);
+                        path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                        path.setAttribute('id', 'path-' + count);
+                        path.setAttribute('fill', '#fff');
+                        path.setAttribute('stroke', 'black');
+                        path.setAttribute('stroke-width', 1);
+                        renderPath();
+                        svg.appendChild(path);
+
+
+                        currentCurveControlPoint1 = pos;
+                        currentCurveControlPoint2 = { x: pos.x, y: pos.y };
+                        currentCurveEndPoint = pos;
+                    } else {
+
+                        currentCurveControlPoint1 = currentCurvePoint1 || points[points.length - 1];
+                        currentCurveControlPoint2 = { x: pos.x, y: pos.y };
+                        currentCurveEndPoint = pos;
+                        pathData.push(['C', currentCurveControlPoint1.x, currentCurveControlPoint1.y, currentCurveControlPoint2.x, currentCurveControlPoint2.y, currentCurveEndPoint.x, currentCurveEndPoint.y]);
+                        renderPath();
+
+                        currentCurvePoint1 = null;
+                        currentCurvePoint2 = null;
+
+                        if (snapPoint) {
+
+                            if (snapPoint.x === points[0].x && snapPoint.y === points[0].y) {
+
+                                const angle = Math.atan2(pathData[1][2] - points[0].y, pathData[1][1] - points[0].x);
+                                const dist = Math.sqrt(Math.pow(points[0].x - pathData[1][1], 2) + Math.pow(points[0].y - pathData[1][2], 2));
+
+                                let x2 = points[0].x - dist * Math.cos(angle);
+                                let y2 = points[0].y - dist * Math.sin(angle);
+
+                                pathData[pathData.length - 1][3] = x2;
+                                pathData[pathData.length - 1][4] = y2;
+
+                                closePath();
+                            }
+
+                        }
+                    }
+
+                    if (pathData.length > 0) {
+                        points.push(startDragPoint);
+                        createNodePoints(startDragPoint.x, startDragPoint.y);
+                    }
+
+                    removeGuide();
+
+                }
+            }
+
+        });
+
+        eventEmitter.on('panend', (evt) => {
+
+            if (type === 'edit') {
+                edit = null;
+                pathNodeTap = 0;
+            }
+
+            if (type === 'draw') {
+
+                if (!isDragging) return;
+                isDragging = false;
+
+                let pos = getTouchPosition(evt);
+                const snapPoint = getSnapPoint(pos);
+
+                if (snapPoint) {
+                    if (snapPoint.x === points[points.length - 1].x && snapPoint.y === points[points.length - 1].y) {
+                        return;
+                    }
+                }
+
+                if (isCurve) {
+
+                    if (points.length > 1) {
+                        if (currentCurveEndPoint.x === pathData[0][1] && currentCurveEndPoint.y === pathData[0][2]) {
+                            closePath();
+                        }
+                    }
+
+                    return;
+                }
+            }
+
+        });
+
+        eventEmitter.on('panmove', (evt) => {
+
+            if (type === 'edit') {
+
+                if (edit && edit.class === 'path-node') {
+
+                    if (pathNodeTap > 1) {
+
+                        if (edit.guide) {
+
+                            if (edit.guide[0] && edit.guide[0].getAttribute('fill-opacity')) {
+
+                                let state = false;
+
+                                for (let i = 0; i < edit.guide.length; i++) {
+
+                                    if (edit.guide[i].getAttribute('fill-opacity') === '0') {
+                                        edit.guide[i].setAttribute('fill-opacity', 1);
+                                        edit.guide[i].removeAttribute('pointer-events');
+                                    } else {
+                                        state = true;
+                                    }
+                                }
+
+                                if (state) {
+
+                                    let pos = getTouchPosition(evt);
+
+                                    let x = pos.x - edit.point.x;
+                                    let y = pos.y - edit.point.y;
+
+                                    let t;
+
+                                    if (x < 0 && y < 0 || x < 0 && y > 0 || x > 0 && y < 0) {
+                                        t = 0;
+                                    } else {
+                                        t = 1;
+                                    }
+
+                                    path_curve(edit.guide[t]);
+
+                                }
+                            }
+                        }
+
+                    } else {
+
+                        let pos = getTouchPosition(evt);
+
+                        for (let i = 0; i < edit.data.length; i++) {
+
+                            let sumX = pos.x - edit.point.x;
+                            let sumY = pos.y - edit.point.y;
+
+                            arrayPath[edit.id].pathData[edit.data[i].index][edit.data[i].ix] = edit.data[i].x + sumX;
+                            arrayPath[edit.id].pathData[edit.data[i].index][edit.data[i].iy] = edit.data[i].y + sumY;
+
+                        }
+
+                        editPath(edit.id);
+
+                    }
+                }
+
+                if (edit && edit.class === 'path-curve') {
+
+                    let pos = getTouchPosition(evt);
+
+                    for (let i = 0; i < edit.data.length; i++) {
+
+                        let sumX = pos.x - edit.point.x;
+                        let sumY = pos.y - edit.point.y;
+
+                        let x1 = edit.data[i].x + sumX;
+                        let y1 = edit.data[i].y + sumY;
+
+                        let x2 = edit.data[i].x - sumX;
+                        let y2 = edit.data[i].y - sumY;
+
+                        if (edit.type === 0) {
+
+                            if (edit.data[i].ix === 1 && edit.data[i].iy === 2) {
+                                arrayPath[edit.id].pathData[edit.data[i].index][edit.data[i].ix] = x1;
+                                arrayPath[edit.id].pathData[edit.data[i].index][edit.data[i].iy] = y1;
+                            }
+
+                            if (edit.data[i].ix === 3 && edit.data[i].iy === 4) {
+                                arrayPath[edit.id].pathData[edit.data[i].index][edit.data[i].ix] = x2;
+                                arrayPath[edit.id].pathData[edit.data[i].index][edit.data[i].iy] = y2;
+                            }
+
+
+                        }
+
+                        if (edit.type === 1) {
+
+                            if (edit.data[i].ix === 1 && edit.data[i].iy === 2) {
+                                arrayPath[edit.id].pathData[edit.data[i].index][edit.data[i].ix] = x2;
+                                arrayPath[edit.id].pathData[edit.data[i].index][edit.data[i].iy] = y2;
+                            }
+
+                            if (edit.data[i].ix === 3 && edit.data[i].iy === 4) {
+                                arrayPath[edit.id].pathData[edit.data[i].index][edit.data[i].ix] = x1;
+                                arrayPath[edit.id].pathData[edit.data[i].index][edit.data[i].iy] = y1;
+                            }
+
+                        }
+
+                    }
+
+                    editPath(edit.id);
+
+                }
+
+            }
+
+            if (type === 'draw') {
+
+                let pos = getTouchPosition(evt);
+
+                const angle = Math.atan2(pos.y - points[points.length - 1].y, pos.x - points[points.length - 1].x);
+                const dist = Math.sqrt(Math.pow(points[points.length - 1].x - pos.x, 2) + Math.pow(points[points.length - 1].y - pos.y, 2));
+                let x1 = points[points.length - 1].x + dist * Math.cos(angle);
+                let y1 = points[points.length - 1].y + dist * Math.sin(angle);
+                let x2 = points[points.length - 1].x - dist * Math.cos(angle);
+                let y2 = points[points.length - 1].y - dist * Math.sin(angle);
+
+                currentCurvePoint1 = { x: x1, y: y1 };
+                currentCurvePoint2 = { x: x2, y: y2 };
+
+                if (points.length > 0 && isDragging) {
+
+                    const snapPoint = getSnapPoint(pos);
+                    if (snapPoint) {
+                        pos = snapPoint;
+                    }
+
+                    if (isCurve) {
+
+                        updateGuideLine(pos);
+
+                        if (pathData[pathData.length - 1] && pathData[pathData.length - 1][0].toLowerCase() === 'c') {
+
+                            currentCurveControlPoint2 = currentCurvePoint2;
+
+                            pathData[pathData.length - 1] = ['C', currentCurveControlPoint1.x, currentCurveControlPoint1.y, currentCurveControlPoint2.x, currentCurveControlPoint2.y, currentCurveEndPoint.x, currentCurveEndPoint.y];
+                            renderPath();
+                        }
+                    }
+                }
+            }
+        });
+
+        eventEmitter.on('mousemove', (evt) => {
+
+            if (type === 'draw') {
+                if (pathData.length > 0) {
+
+                    let pos = getMousePosition(evt);
+
+                    const snapPoint = getSnapPoint(pos);
+                    if (snapPoint) {
+                        pos = snapPoint;
+                    }
+
+                    updateGuideCurve(pos);
+                }
+            }
+        });
+
+        function getSnapPoint(pos) {
+            let minDist = Infinity;
+            let snapPoint = null;
+            points.forEach(point => {
+                const dist = Math.sqrt((pos.x - point.x) ** 2 + (pos.y - point.y) ** 2);
+                if (dist < minDist && dist < 5) {
+                    minDist = dist;
+                    snapPoint = point;
+                }
+            });
+            return snapPoint;
+        }
+    </script>
+</body>
+
+</html>

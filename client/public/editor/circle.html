@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SVG Ellipse Drawing with Hammer.js</title>
+  <style>
+    svg {
+      border: 1px solid black;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+</head>
+<body>
+  <svg id="drawingArea" width="600" height="400"></svg>
+
+  <script>
+    const svg = document.getElementById('drawingArea');
+    const hammer = new Hammer(svg);
+
+    hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL, threshold: 0 });
+
+    let isDrawing = false;
+    let ellipse, startX, startY, centerX, centerY, rx, ry;
+
+    hammer.on('panstart', (e) => {
+      startX = e.center.x - svg.getBoundingClientRect().left;
+      startY = e.center.y - svg.getBoundingClientRect().top;
+      isDrawing = true;
+    });
+
+    hammer.on('panmove', (e) => {
+      if (!isDrawing) return;
+
+      const currentX = e.center.x - svg.getBoundingClientRect().left;
+      const currentY = e.center.y - svg.getBoundingClientRect().top;
+
+      const dx = currentX - startX;
+      const dy = currentY - startY;
+
+      centerX = startX + dx / 2;
+      centerY = startY + dy / 2;
+      rx = Math.abs(dx / 2);
+      ry = Math.abs(dy / 2);
+
+      if (!ellipse) {
+        ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        ellipse.setAttribute('fill', 'none');
+        ellipse.setAttribute('stroke', '#000');
+        ellipse.setAttribute('stroke-width', 1);
+        svg.appendChild(ellipse);
+      }
+
+      ellipse.setAttribute('cx', centerX);
+      ellipse.setAttribute('cy', centerY);
+      ellipse.setAttribute('rx', rx);
+      ellipse.setAttribute('ry', ry);
+    });
+
+    hammer.on('panend', () => {
+      isDrawing = false;
+      ellipse = null;
+    });
+
+    hammer.on('pancancel', () => {
+      isDrawing = false;
+      if (ellipse) {
+        svg.removeChild(ellipse);
+        ellipse = null;
+      }
+    });
+  </script>
+</body>
+</html>
